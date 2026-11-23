@@ -1,70 +1,165 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Yemekhane Otomasyonu · Başlangıç</title>
-  <link rel="stylesheet" href="/css/temel.css">
-  <style>
-    /* Yalnızca bu geçici sayfaya ait stiller */
-    .fis {
-      background: var(--yuzey);
-      margin-block: 2rem;
-      padding: 1.5rem var(--bosluk);
-      border-radius: var(--kose);
-      /* yemek fişi görünümü: alt kenarda yırtma çizgisi */
-      border-bottom: 2px dashed var(--cizgi);
-    }
-    .fis h1 { margin-bottom: 0.25rem; }
-    .fis .alt { color: var(--metin-soluk); margin-bottom: 1.5rem; }
-    .servisler { width: 100%; border-collapse: collapse; font-size: var(--boyut-kucuk); }
-    .servisler th, .servisler td { text-align: left; padding: 0.5rem 0.25rem; border-bottom: 1px solid var(--cizgi); }
-    .servisler td:last-child { white-space: nowrap; }
-    #uygulama-durumu { margin-top: 1.5rem; }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kampüs Yemekhane Otomasyonu</title>
+  <link rel="stylesheet" href="stil.css" />
 </head>
 <body>
-  <main class="kapsayici">
-    <section class="fis">
-      <h1>Yemekhane Otomasyonu</h1>
-      <p class="alt">Apache çalışıyor. Bu sayfa başlangıç paketine ait; kendi giriş ekranınızla değiştirin.</p>
-
-      <div class="tablo-kaydir">
-        <table class="servisler">
-          <thead>
-            <tr><th>Servis</th><th>Görevi</th><th>Bilgisayarınızdan</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>frontend</td><td>HTML/CSS, yönlendirme</td><td>localhost:8080</td></tr>
-            <tr><td>mysql-primary</td><td>yazma</td><td>localhost:3307</td></tr>
-            <tr><td>mysql-replica</td><td>okuma, salt okunur</td><td>localhost:3308</td></tr>
-            <tr><td>redis</td><td>menü önbelleği, oturum</td><td>localhost:6379</td></tr>
-            <tr><td>uygulama</td><td>sizin yazacağınız servis</td><td>Apache üzerinden</td></tr>
-          </tbody>
-        </table>
+  <header class="ust-bar">
+    <div class="marka">
+      <span class="logo-ikon">🍽️</span>
+      <div>
+        <strong>Kampüs Yemekhane</strong>
+        <small id="ust-rol-bilgi">Otomasyon Sistemi</small>
       </div>
+    </div>
+    <div id="kullanici-ozet" class="kullanici-ozet gizli">
+      <span id="ust-ad"></span>
+      <span id="ust-bakiye" class="bakiye-rozet">0.00 ₺</span>
+      <button id="cikis-btn" class="btn btn-ikincil btn-kucuk">Çıkış</button>
+    </div>
+  </header>
 
-      <p id="uygulama-durumu" class="bildirim" role="status">Uygulama servisi kontrol ediliyor…</p>
+  <nav id="ana-menu" class="ana-menu gizli">
+    <button class="sekme-btn aktif" data-ekran="ekran-gunluk">Günlük Menü</button>
+    <button class="sekme-btn" data-ekran="ekran-haftalik">Haftalık Menü</button>
+    <button class="sekme-btn" data-ekran="ekran-rezervasyonlar">Rezervasyonlarım</button>
+    <button class="sekme-btn" data-ekran="ekran-bakiye">Bakiye</button>
+    <button class="sekme-btn yonetici-ozel gizli" data-ekran="ekran-yonetim-menu">Menü Tanımla</button>
+    <button class="sekme-btn yonetici-ozel gizli" data-ekran="ekran-yonetim-rapor">Doluluk & Puan Raporu</button>
+  </nav>
+
+  <main class="kapsayici">
+    <div id="bildirim-kutusu" class="bildirim gizli"></div>
+
+    <!-- 1. EKRAN: GİRİŞ EKRANI -->
+    <section id="ekran-giris" class="ekran aktif">
+      <div class="kart giris-karti">
+        <h1>Sisteme Giriş</h1>
+        <p class="alt-aciklama">Öğrenci, personel veya yönetici hesabınızla oturum açın.</p>
+        <form id="giris-formu">
+          <label>E-posta Adresi
+            <input type="email" id="giris-eposta" required placeholder="ornek@kampus.edu.tr" />
+          </label>
+          <label>Şifre
+            <input type="password" id="giris-sifre" required placeholder="••••••" />
+          </label>
+          <button type="submit" class="btn btn-birincil tam-genislik">Giriş Yap</button>
+        </form>
+
+        <div class="hizli-giris">
+          <p><strong>Hızlı Test Hesapları (Tek Tıkla Doldur):</strong></p>
+          <div class="hizli-butonlar">
+            <button type="button" class="btn btn-ikincil btn-kucuk" data-eposta="ayse.demir@ogr.kampus.edu.tr" data-sifre="Yemek2026!">Öğrenci (Ayşe)</button>
+            <button type="button" class="btn btn-ikincil btn-kucuk" data-eposta="murat.kaya@kampus.edu.tr" data-sifre="Yemek2026!">Personel (Murat)</button>
+            <button type="button" class="btn btn-ikincil btn-kucuk" data-eposta="leyla.arslan@kampus.edu.tr" data-sifre="Yemek2026!">Yönetici (Leyla)</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. EKRAN: GÜNLÜK MENÜ VE REZERVASYON -->
+    <section id="ekran-gunluk" class="ekran">
+      <div class="filtre-cubugu kart">
+        <label>Yemekhane
+          <select id="gunluk-yemekhane"></select>
+        </label>
+        <label>Tarih
+          <input type="date" id="gunluk-tarih" />
+        </label>
+        <button id="gunluk-yenile" class="btn btn-birincil">Menüyü Getir</button>
+      </div>
+      <div id="gunluk-liste" class="menu-izgara"></div>
+    </section>
+
+    <!-- 3. EKRAN: HAFTALIK MENÜ GÖRÜNÜMÜ -->
+    <section id="ekran-haftalik" class="ekran">
+      <div class="filtre-cubugu kart">
+        <label>Yemekhane
+          <select id="haftalik-yemekhane"></select>
+        </label>
+        <label>Hafta Başlangıcı
+          <input type="date" id="haftalik-baslangic" />
+        </label>
+        <button id="haftalik-yenile" class="btn btn-birincil">7 Günlük Göster</button>
+      </div>
+      <div id="haftalik-liste" class="haftalik-liste"></div>
+    </section>
+
+    <!-- 4. EKRAN: REZERVASYONLARIM VE DEĞERLENDİRME -->
+    <section id="ekran-rezervasyonlar" class="ekran">
+      <div class="bolum-baslik">
+        <h2>Rezervasyonlarım</h2>
+        <button id="rez-yenile" class="btn btn-ikincil btn-kucuk">Yenile</button>
+      </div>
+      <div id="rezervasyon-liste" class="kart-liste"></div>
+    </section>
+
+    <!-- 5. EKRAN: BAKİYE YÜKLEME VE HESAP HAREKETLERİ -->
+    <section id="ekran-bakiye" class="ekran">
+      <div class="bakiye-ust-izgara">
+        <div class="kart bakiye-ozet-kart">
+          <h3>Mevcut Bakiye</h3>
+          <div id="bakiye-buyuk" class="bakiye-rakam">0.00 ₺</div>
+          <form id="bakiye-formu" class="satir-form">
+            <input type="number" id="bakiye-tutar" min="1" max="5000" step="1" value="100" required />
+            <button type="submit" class="btn btn-birincil">Bakiye Yükle</button>
+          </form>
+          <div class="hizli-tutarlar">
+            <button type="button" class="btn btn-ikincil btn-kucuk tutar-sec" data-tutar="50">+50 ₺</button>
+            <button type="button" class="btn btn-ikincil btn-kucuk tutar-sec" data-tutar="100">+100 ₺</button>
+            <button type="button" class="btn btn-ikincil btn-kucuk tutar-sec" data-tutar="250">+250 ₺</button>
+          </div>
+        </div>
+
+        <div class="kart">
+          <h3>Hesap Hareketleri</h3>
+          <div id="hareket-liste" class="hareket-liste"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. EKRAN: YÖNETİCİ - MENÜ TANIMLAMA -->
+    <section id="ekran-yonetim-menu" class="ekran">
+      <div class="kart">
+        <h2>Günlük Menü Tanımla / Güncelle</h2>
+        <form id="yonetim-menu-formu">
+          <div class="form-izgara">
+            <label>Yemekhane
+              <select id="ym-yemekhane" required></select>
+            </label>
+            <label>Tarih
+              <input type="date" id="ym-tarih" required />
+            </label>
+            <label>Öğün
+              <select id="ym-ogun" required></select>
+            </label>
+            <label>Öğrenci Fiyatı (₺)
+              <input type="number" id="ym-ogrenci-fiyat" step="0.5" value="25" required />
+            </label>
+            <label>Personel Fiyatı (₺)
+              <input type="number" id="ym-personel-fiyat" step="0.5" value="65" required />
+            </label>
+          </div>
+          <p class="etiket-baslik">Menüye Eklenecek Yemekleri Seçin:</p>
+          <div id="ym-yemek-secim" class="yemek-secim-izgara"></div>
+          <button type="submit" class="btn btn-birincil">Menüyü Kaydet</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- 7. EKRAN: YÖNETİCİ - DOLULUK VE PUAN RAPORU -->
+    <section id="ekran-yonetim-rapor" class="ekran">
+      <div class="bolum-baslik">
+        <h2>Doluluk ve Değerlendirme Raporu</h2>
+        <button id="rapor-yenile" class="btn btn-ikincil btn-kucuk">Raporu Yenile</button>
+      </div>
+      <div id="rapor-liste" class="kart-liste"></div>
     </section>
   </main>
 
-  <script>
-    // Web API modunda /api/ isteği uygulamaya gider. 502/503 ise uygulama yok ya da çalışmıyor.
-    const kutu = document.getElementById('uygulama-durumu');
-    fetch('/api/', { headers: { Accept: 'application/json' } })
-      .then(yanit => {
-        if (yanit.status === 502 || yanit.status === 503) {
-          kutu.textContent = 'Uygulama servisine ulaşılamıyor. docker-compose.yml içindeki uygulama servisini ekleyip "docker compose up -d" çalıştırın.';
-          kutu.classList.add('bildirim-hata');
-        } else {
-          kutu.textContent = 'Uygulama servisi yanıt veriyor (HTTP ' + yanit.status + ').';
-          kutu.classList.add('bildirim-basari');
-        }
-      })
-      .catch(() => {
-        kutu.textContent = 'İstek gönderilemedi. Apache günlüğüne bakın: docker compose logs frontend';
-        kutu.classList.add('bildirim-hata');
-      });
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>

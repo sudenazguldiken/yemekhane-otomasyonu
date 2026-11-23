@@ -1,0 +1,404 @@
+:root {
+  --ana: #1b5e20;
+  --ana-koyu: #124116;
+  --vurgu: #2e7d32;
+  --arka: #f4f6f5;
+  --kart: #ffffff;
+  --metin: #1f2937;
+  --soluk: #6b7280;
+  --sinir: #e5e7eb;
+  --tehlike: #b91c1c;
+  --uyari: #b45309;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--arka);
+  color: var(--metin);
+  line-height: 1.5;
+}
+
+.gizli {
+  display: none !important;
+}
+
+.ust-bar {
+  background: var(--ana);
+  color: #fff;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.marka {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-ikon {
+  font-size: 1.6rem;
+}
+
+.marka small {
+  display: block;
+  opacity: 0.85;
+  font-size: 0.8rem;
+}
+
+.kullanici-ozet {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.bakiye-rozet {
+  background: rgba(255, 255, 255, 0.18);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.ana-menu {
+  background: #fff;
+  border-bottom: 1px solid var(--sinir);
+  padding: 8px 16px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.sekme-btn {
+  border: 1px solid var(--sinir);
+  background: #f9fafb;
+  color: var(--metin);
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.sekme-btn.aktif {
+  background: var(--ana);
+  color: #fff;
+  border-color: var(--ana);
+}
+
+.kapsayici {
+  max-width: 1040px;
+  margin: 20px auto;
+  padding: 0 16px 40px;
+}
+
+.ekran {
+  display: none;
+}
+
+.ekran.aktif {
+  display: block;
+}
+
+.kart {
+  background: var(--kart);
+  border: 1px solid var(--sinir);
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.giris-karti {
+  max-width: 440px;
+  margin: 24px auto;
+}
+
+.alt-aciklama {
+  color: var(--soluk);
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+input, select, textarea {
+  padding: 9px 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  width: 100%;
+}
+
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-birincil {
+  background: var(--ana);
+  color: #fff;
+}
+
+.btn-birincil:hover:not(:disabled) {
+  background: var(--ana-koyu);
+}
+
+.btn-ikincil {
+  background: #e5e7eb;
+  color: var(--metin);
+}
+
+.btn-tehlike {
+  background: var(--tehlike);
+  color: #fff;
+}
+
+.btn-kucuk {
+  padding: 6px 11px;
+  font-size: 0.82rem;
+}
+
+.tam-genislik {
+  width: 100%;
+}
+
+.hizli-giris {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--sinir);
+  font-size: 0.85rem;
+}
+
+.hizli-butonlar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.bildirim {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.bildirim.basari {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.bildirim.hata {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.filtre-cubugu {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 18px;
+}
+
+.filtre-cubugu label {
+  margin-bottom: 0;
+}
+
+.menu-izgara {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.menu-baslik {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--sinir);
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+
+.etiket {
+  font-size: 0.78rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #e8f5e9;
+  color: var(--ana);
+  font-weight: 600;
+}
+
+.yemek-listesi {
+  list-style: none;
+  margin-bottom: 12px;
+}
+
+.yemek-listesi li {
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--sinir);
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.92rem;
+}
+
+.alerjen-metin {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--uyari);
+}
+
+.doluluk-cubuk {
+  background: #e5e7eb;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 6px 0;
+}
+
+.doluluk-dolu {
+  background: var(--vurgu);
+  height: 100%;
+}
+
+.menu-alt {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.kart-liste, .haftalik-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bolum-baslik {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.bakiye-ust-izgara {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 16px;
+}
+
+.bakiye-rakam {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--ana);
+  margin: 10px 0 14px;
+}
+
+.satir-form {
+  display: flex;
+  gap: 8px;
+}
+
+.hizli-tutarlar {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.hareket-satir {
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--sinir);
+  font-size: 0.9rem;
+}
+
+.tutar-arti {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.tutar-eksi {
+  color: var(--tehlike);
+  font-weight: 700;
+}
+
+.form-izgara {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.yemek-secim-izgara {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  margin: 10px 0 16px;
+}
+
+.yemek-secim-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--sinir);
+  border-radius: 8px;
+  margin-bottom: 0;
+}
+
+.yemek-secim-item input {
+  width: auto;
+}
+
+.degerlendirme-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.degerlendirme-form select {
+  width: 110px;
+}
+
+.degerlendirme-form input {
+  flex: 1;
+  min-width: 160px;
+}
+
+@media (max-width: 720px) {
+  .filtre-cubugu, .bakiye-ust-izgara {
+    grid-template-columns: 1fr;
+  }
+}
