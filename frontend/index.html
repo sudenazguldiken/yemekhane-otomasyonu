@@ -27,6 +27,7 @@
     <button class="sekme-btn" data-ekran="ekran-haftalik">Haftalık Menü</button>
     <button class="sekme-btn" data-ekran="ekran-rezervasyonlar">Rezervasyonlarım</button>
     <button class="sekme-btn" data-ekran="ekran-bakiye">Bakiye</button>
+    <button class="sekme-btn" data-ekran="ekran-alerjenler">Alerjenlerim</button>
     <button class="sekme-btn yonetici-ozel gizli" data-ekran="ekran-yonetim-menu">Menü Tanımla</button>
     <button class="sekme-btn yonetici-ozel gizli" data-ekran="ekran-yonetim-rapor">Doluluk & Puan Raporu</button>
   </nav>
@@ -104,7 +105,7 @@
           <h3>Mevcut Bakiye</h3>
           <div id="bakiye-buyuk" class="bakiye-rakam">0.00 ₺</div>
           <form id="bakiye-formu" class="satir-form">
-            <input type="number" id="bakiye-tutar" min="1" max="5000" step="1" value="100" required />
+            <input type="number" id="bakiye-tutar" min="10" max="1000" step="1" value="100" required />
             <button type="submit" class="btn btn-birincil">Bakiye Yükle</button>
           </form>
           <div class="hizli-tutarlar">
@@ -118,6 +119,18 @@
           <h3>Hesap Hareketleri</h3>
           <div id="hareket-liste" class="hareket-liste"></div>
         </div>
+      </div>
+    </section>
+
+    <!-- 5B. EKRAN: PROFİL & ALERJEN BİLDİRİMİ (AŞAMA 4) -->
+    <section id="ekran-alerjenler" class="ekran">
+      <div class="kart">
+        <h2>Profil & Alerjen Tercihlerim</h2>
+        <p class="alt-aciklama">Alerjiniz olan maddeleri işaretleyip kaydedin. Günlük ve haftalık menülerde bu alerjenleri içeren yemekler kırmızı uyarı ile vurgulanır.</p>
+        <form id="alerjen-formu">
+          <div id="alerjen-secim-listesi" class="yemek-secim-izgara"></div>
+          <button type="submit" class="btn btn-birincil" style="margin-top: 14px;">Alerjen Tercihlerini Kaydet</button>
+        </form>
       </div>
     </section>
 

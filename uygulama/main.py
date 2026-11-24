@@ -31,6 +31,11 @@ class GirisIstegi(BaseModel):
 
 class RezervasyonIstegi(BaseModel):
     menu_id: int
+    porsiyon: str = "tam"
+
+
+class AlerjenGuncelleIstegi(BaseModel):
+    alerjen_idler: List[int]
 
 
 class BakiyeIstegi(BaseModel):
@@ -67,7 +72,6 @@ def aktif_kullanici_getir(authorization: Optional[str] = Header(default=None)):
     veri = rdb.get(anahtar)
     if not veri:
         raise HTTPException(status_code=401, detail="Oturum süresi dolmuş veya geçersiz.")
-    # Oturum süresi 30 dakika, her istekte yenilenir
     rdb.expire(anahtar, OTURUM_TTL)
     kullanici = json.loads(veri)
     kullanici["token"] = token
@@ -105,7 +109,11 @@ def giris(istek: GirisIstegi):
     }
     rdb.setex(f"oturum:{token}", OTURUM_TTL, json.dumps(oturum_verisi, ensure_ascii=False))
     logger.info(f"[OTURUM] Yeni oturum olusturuldu: oturum:{token} (TTL={OTURUM_TTL}s)")
-    return {"token": token, "kullanici": {**oturum_verisi, "bakiye": float(k["bakiye"])}}
+    alerjen_idler = db.kullanici_alerjenlerini_getir_db(k["id"])
+    return {
+        "token": token,
+        "kullanici": {**oturum_verisi, "bakiye": float(k["bakiye"]), "alerjen_idler": alerjen_idler},
+    }
 
 
 @app.post("/cikis")
@@ -120,7 +128,19 @@ def ben(kullanici=Depends(aktif_kullanici_getir)):
     k = db.kullanici_getir_kaynak(kullanici["id"])
     if not k:
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı.")
+    k["alerjen_idler"] = db.kullanici_alerjenlerini_getir_db(kullanici["id"])
     return k
+
+
+@app.get("/profil/alerjenler")
+def profil_alerjenler_getir(kullanici=Depends(aktif_kullanici_getir)):
+    return {"alerjen_idler": db.kullanici_alerjenlerini_getir_db(kullanici["id"])}
+
+
+@app.put("/profil/alerjenler")
+def profil_alerjenler_kaydet(istek: AlerjenGuncelleIstegi, kullanici=Depends(aktif_kullanici_getir)):
+    guncel = db.kullanici_alerjenlerini_kaydet_db(kullanici["id"], istek.alerjen_idler)
+    return {"mesaj": "Alerjen tercihleriniz güncellendi.", "alerjen_idler": guncel}
 
 
 @app.get("/referanslar")
@@ -128,8 +148,10 @@ def referanslar(response: Response, kullanici=Depends(aktif_kullanici_getir)):
     cache_key = "ref:genel"
     onbellek = rdb.get(cache_key)
     if onbellek:
-        response.headers["X-Cache"] = "HIT"
-        return json.loads(onbellek)
+        data = json.loads(onbellek)
+        if "alerjenler" in data:
+            response.headers["X-Cache"] = "HIT"
+            return data
 
     sonuc = db.referanslari_getir()
     rdb.setex(cache_key, gun_sonu_ttl_saniye(), json.dumps(sonuc, ensure_ascii=False, default=str))
@@ -141,9 +163,11 @@ def _tek_ogun_menu_getir(yemekhane_id: int, tarih_str: str, ogun_id: int, respon
     cache_key = f"menu:{yemekhane_id}:{tarih_str}:{ogun_id}"
     onbellek = rdb.get(cache_key)
     if onbellek:
-        logger.info(f"[CACHE HIT] Redis onbellekten okundu -> {cache_key}")
-        response.headers["X-Cache"] = "HIT"
-        return json.loads(onbellek)
+        data = json.loads(onbellek)
+        if "yarim_porsiyon_uygun" in data:
+            logger.info(f"[CACHE HIT] Redis onbellekten okundu -> {cache_key}")
+            response.headers["X-Cache"] = "HIT"
+            return data
 
     logger.info(f"[CACHE MISS] Veritabanindan okundu -> {cache_key}")
     menu = db.tek_menu_getir_db(yemekhane_id, tarih_str, ogun_id)
@@ -182,16 +206,25 @@ def menuler(
             gun += timedelta(days=1)
 
     rez_harita = db.kullanici_rezervasyon_haritasi(kullanici["id"])
+    kullanici_alerjen_set = set(db.kullanici_alerjenlerini_getir_db(kullanici["id"]))
+
     for m in sonuc:
-        m["kullanici_fiyati"] = m["ogrenci_fiyati"] if kullanici["rol"] == "ogrenci" else m["personel_fiyati"]
+        tam_fiyat = m["ogrenci_fiyati"] if kullanici["rol"] == "ogrenci" else m["personel_fiyati"]
+        m["kullanici_fiyati"] = tam_fiyat
+        m["yarim_fiyat"] = round(tam_fiyat * 0.60, 2) if m.get("yarim_porsiyon_uygun") else None
         m["mevcut_rezervasyon"] = rez_harita.get(m["menu_id"])
+
+        for y in m["yemekler"]:
+            y_alerjen_idler = set(y.get("alerjen_id_listesi") or [])
+            y["alerjen_uyarisi"] = bool(kullanici_alerjen_set.intersection(y_alerjen_idler))
+
     return sonuc
 
 
 @app.post("/rezervasyonlar")
 def rezervasyon_yap(istek: RezervasyonIstegi, kullanici=Depends(aktif_kullanici_getir)):
     try:
-        sonuc, meta = db.rezervasyon_olustur_db(kullanici["id"], istek.menu_id)
+        sonuc, meta = db.rezervasyon_olustur_db(kullanici["id"], istek.menu_id, istek.porsiyon)
     except Exception as e:
         raise HTTPException(status_code=400, detail=getattr(e, "args", ["", str(e)])[-1])
 

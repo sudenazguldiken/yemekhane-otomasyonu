@@ -2,6 +2,7 @@ const durum = {
   token: localStorage.getItem("yemekhane_token") || null,
   kullanici: null,
   referanslar: null,
+  porsiyonSecimleri: {},
 };
 
 function bugunStr(ekGun = 0) {
@@ -44,6 +45,7 @@ function ekranAc(ekranId) {
   if (ekranId === "ekran-haftalik") haftalikMenuleriYukle();
   if (ekranId === "ekran-rezervasyonlar") rezervasyonlariYukle();
   if (ekranId === "ekran-bakiye") bakiyeYukle();
+  if (ekranId === "ekran-alerjenler") alerjenFormunuDoldur();
   if (ekranId === "ekran-yonetim-rapor") yonetimRaporuYukle();
 }
 
@@ -110,15 +112,51 @@ function referanslariDoldur() {
       </label>`
     )
     .join("");
+
+  alerjenFormunuDoldur();
+}
+
+function alerjenFormunuDoldur() {
+  const kapsayici = document.getElementById("alerjen-secim-listesi");
+  if (!kapsayici || !durum.referanslar) return;
+  const seciliSet = new Set(durum.kullanici?.alerjen_idler || []);
+  const alerjenler = durum.referanslar.alerjenler || [];
+
+  kapsayici.innerHTML = alerjenler
+    .map(
+      (a) => `
+      <label class="yemek-secim-item ${seciliSet.has(a.id) ? "alerjen-secili" : ""}">
+        <input type="checkbox" name="kullanici_alerjen" value="${a.id}" ${seciliSet.has(a.id) ? "checked" : ""} />
+        <span><strong>${a.ad}</strong></span>
+      </label>`
+    )
+    .join("");
+}
+
+function porsiyonDegistir(menuId, porsiyon, tamFiyat, yarimFiyat) {
+  durum.porsiyonSecimleri[menuId] = porsiyon;
+  const gosterilenFiyat = porsiyon === "yarim" ? yarimFiyat : tamFiyat;
+  const ucretEl = document.getElementById(`menu-ucret-${menuId}`);
+  const btnEl = document.getElementById(`rez-btn-${menuId}`);
+  if (ucretEl) ucretEl.textContent = `Ücret: ${Number(gosterilenFiyat).toFixed(2)} ₺`;
+  if (btnEl) {
+    const etiket = porsiyon === "yarim" ? "Yarım Porsiyon" : "Tam Porsiyon";
+    btnEl.textContent = `Rezervasyon Yap (${etiket} • ${Number(gosterilenFiyat).toFixed(2)} ₺)`;
+  }
 }
 
 function menuKartiHtml(m) {
+  const alerjenliMenuMu = m.yemekler.some((y) => y.alerjen_uyarisi);
+  const seciliPorsiyon = m.yarim_porsiyon_uygun ? (durum.porsiyonSecimleri[m.menu_id] || "tam") : "tam";
+  const aktifFiyat = seciliPorsiyon === "yarim" && m.yarim_fiyat !== null ? m.yarim_fiyat : m.kullanici_fiyati;
+
   const yemeklerHtml = m.yemekler
     .map(
       (y) => `
-      <li>
+      <li class="${y.alerjen_uyarisi ? "yemek-alerjen-uyari" : ""}">
         <div>
           <strong>${y.yemek}</strong> ${y.vejetaryen ? "🌱" : ""}
+          ${y.alerjen_uyarisi ? `<span class="alerjen-uyari-rozet">⚠️ Alerjen Uyarısı!</span>` : ""}
           ${y.alerjenler ? `<span class="alerjen-metin">Alerjen: ${y.alerjenler}</span>` : ""}
         </div>
         <span>${y.kalori} kcal</span>
@@ -126,35 +164,60 @@ function menuKartiHtml(m) {
     )
     .join("");
 
+  let porsiyonSeciciHtml = "";
+  if (!m.mevcut_rezervasyon && !m.sure_doldu && m.bos_yer > 0) {
+    if (m.yarim_porsiyon_uygun && m.yarim_fiyat !== null) {
+      porsiyonSeciciHtml = `
+        <div class="porsiyon-secici">
+          <label>
+            <input type="radio" name="porsiyon-${m.menu_id}" value="tam" ${seciliPorsiyon === "tam" ? "checked" : ""}
+              onchange="porsiyonDegistir(${m.menu_id}, 'tam', ${m.kullanici_fiyati}, ${m.yarim_fiyat})" />
+            <span>Tam (${m.kullanici_fiyati.toFixed(2)} ₺)</span>
+          </label>
+          <label>
+            <input type="radio" name="porsiyon-${m.menu_id}" value="yarim" ${seciliPorsiyon === "yarim" ? "checked" : ""}
+              onchange="porsiyonDegistir(${m.menu_id}, 'yarim', ${m.kullanici_fiyati}, ${m.yarim_fiyat})" />
+            <span>Yarım %60 (${m.yarim_fiyat.toFixed(2)} ₺)</span>
+          </label>
+        </div>`;
+    } else {
+      porsiyonSeciciHtml = `<small style="color:#6b7280;display:block;margin-top:4px;">Kahvaltı öğününde yalnızca tam porsiyon sunulur.</small>`;
+    }
+  }
+
   let aksiyonHtml = "";
   if (m.mevcut_rezervasyon) {
-    aksiyonHtml = `<span class="etiket">Rezerve Edildi (${m.mevcut_rezervasyon.durum})</span>`;
+    const porsiyonBilgi = m.mevcut_rezervasyon.porsiyon === "yarim" ? "Yarım" : "Tam";
+    aksiyonHtml = `<span class="etiket">Rezerve Edildi (${m.mevcut_rezervasyon.durum} • ${porsiyonBilgi})</span>`;
   } else if (m.sure_doldu) {
     aksiyonHtml = `<button class="btn btn-ikincil" disabled>Süre Doldu</button>`;
   } else if (m.bos_yer <= 0) {
     aksiyonHtml = `<button class="btn btn-ikincil" disabled>Kapasite Dolu</button>`;
   } else {
-    aksiyonHtml = `<button class="btn btn-birincil" onclick="rezervasyonYap(${m.menu_id})">Rezervasyon Yap (${m.kullanici_fiyati.toFixed(2)} ₺)</button>`;
+    const etiket = seciliPorsiyon === "yarim" ? "Yarım Porsiyon" : "Tam Porsiyon";
+    aksiyonHtml = `<button id="rez-btn-${m.menu_id}" class="btn btn-birincil" onclick="rezervasyonYap(${m.menu_id})">Rezervasyon Yap (${etiket} • ${aktifFiyat.toFixed(2)} ₺)</button>`;
   }
 
   const puanMetni = m.oy_sayisi > 0 ? `⭐ ${Number(m.ortalama_puan).toFixed(1)} (${m.oy_sayisi} oy)` : "Henüz puanlanmadı";
 
   return `
-    <article class="kart">
+    <article class="kart ${alerjenliMenuMu ? "kart-alerjen-riskli" : ""}">
       <div class="menu-baslik">
         <div>
-          <h3>${m.ogun}</h3>
+          <h3>${m.ogun} ${alerjenliMenuMu ? "⚠️" : ""}</h3>
           <small>${m.tarih} • Son Rezervasyon: ${m.rezervasyon_son.slice(11)}</small>
         </div>
         <span class="etiket">${m.toplam_kalori} kcal</span>
       </div>
+      ${alerjenliMenuMu ? `<div class="alerjen-banner">⚠️ Bu menüde seçtiğiniz alerjenleri içeren yemek bulunuyor!</div>` : ""}
       <ul class="yemek-listesi">${yemeklerHtml}</ul>
       <div>
         <small>Doluluk: <strong>${m.rezerve} / ${m.kapasite}</strong> (%${m.doluluk_yuzde}) • ${puanMetni}</small>
         <div class="doluluk-cubuk"><div class="doluluk-dolu" style="width:${Math.min(100, m.doluluk_yuzde)}%"></div></div>
       </div>
+      ${porsiyonSeciciHtml}
       <div class="menu-alt">
-        <strong>Ücret: ${m.kullanici_fiyati.toFixed(2)} ₺</strong>
+        <strong id="menu-ucret-${m.menu_id}">Ücret: ${aktifFiyat.toFixed(2)} ₺</strong>
         ${aksiyonHtml}
       </div>
     </article>`;
@@ -191,16 +254,17 @@ async function haftalikMenuleriYukle() {
       return;
     }
     liste.innerHTML = menuler
-      .map(
-        (m) => `
-        <div class="kart">
+      .map((m) => {
+        const alerjenVar = m.yemekler.some((y) => y.alerjen_uyarisi);
+        return `
+        <div class="kart ${alerjenVar ? "kart-alerjen-riskli" : ""}">
           <div class="menu-baslik">
-            <strong>${m.tarih} — ${m.ogun}</strong>
+            <strong>${m.tarih} — ${m.ogun} ${alerjenVar ? "⚠️ Alerjen İçerir" : ""}</strong>
             <span>${m.kullanici_fiyati.toFixed(2)} ₺ • ${m.toplam_kalori} kcal</span>
           </div>
-          <p>${m.yemekler.map((y) => y.yemek).join(", ")}</p>
-        </div>`
-      )
+          <p>${m.yemekler.map((y) => (y.alerjen_uyarisi ? `⚠️ ${y.yemek}` : y.yemek)).join(", ")}</p>
+        </div>`;
+      })
       .join("");
   } catch (e) {
     liste.innerHTML = `<div class="kart"><p>${e.message}</p></div>`;
@@ -208,10 +272,11 @@ async function haftalikMenuleriYukle() {
 }
 
 async function rezervasyonYap(menuId) {
+  const porsiyon = durum.porsiyonSecimleri[menuId] || "tam";
   try {
     const yanit = await apiIstek("/rezervasyonlar", {
       method: "POST",
-      body: JSON.stringify({ menu_id: menuId }),
+      body: JSON.stringify({ menu_id: menuId, porsiyon }),
     });
     bildirimGoster(yanit.mesaj, "basari");
     durum.kullanici = await apiIstek("/ben");
@@ -233,6 +298,7 @@ async function rezervasyonlariYukle() {
     }
     liste.innerHTML = kayitlar
       .map((r) => {
+        const porsiyonEtiketi = r.porsiyon === "yarim" ? "YARIM PORSİYON" : "TAM PORSİYON";
         let ekstraHtml = "";
         if (r.durum === "aktif" && r.iptal_edilebilir) {
           ekstraHtml = `<button class="btn btn-tehlike btn-kucuk" onclick="rezervasyonIptal(${r.id})">İptal Et (Ücret İadesi)</button>`;
@@ -258,7 +324,7 @@ async function rezervasyonlariYukle() {
             <div class="menu-baslik">
               <div>
                 <strong>${r.tarih} • ${r.ogun}</strong>
-                <small style="display:block">${r.yemekhane}</small>
+                <small style="display:block">${r.yemekhane} • ${porsiyonEtiketi}</small>
               </div>
               <span class="etiket">${r.durum.toUpperCase()} • ${Number(r.ucret).toFixed(2)} ₺</span>
             </div>
@@ -406,6 +472,22 @@ document.getElementById("bakiye-formu").addEventListener("submit", async (e) => 
     });
     bildirimGoster(yanit.mesaj, "basari");
     await bakiyeYukle();
+  } catch (err) {
+    bildirimGoster(err.message, "hata");
+  }
+});
+
+document.getElementById("alerjen-formu").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const seciliAlerjenler = Array.from(document.querySelectorAll('input[name="kullanici_alerjen"]:checked')).map((el) => Number(el.value));
+  try {
+    const yanit = await apiIstek("/profil/alerjenler", {
+      method: "PUT",
+      body: JSON.stringify({ alerjen_idler: seciliAlerjenler }),
+    });
+    durum.kullanici.alerjen_idler = yanit.alerjen_idler;
+    bildirimGoster(yanit.mesaj, "basari");
+    alerjenFormunuDoldur();
   } catch (err) {
     bildirimGoster(err.message, "hata");
   }

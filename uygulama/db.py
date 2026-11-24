@@ -1,6 +1,6 @@
 import os
-from datetime import date, timedelta
-from typing import List, Optional
+from datetime import date
+from typing import List
 import mysql.connector
 
 
@@ -78,7 +78,7 @@ def referanslari_getir():
         with conn.cursor() as cur:
             cur.execute("SELECT id, ad, kapasite FROM yemekhaneler ORDER BY id")
             yemekhaneler = cur.fetchall()
-            cur.execute("SELECT id, ad, TIME_FORMAT(son_saat, '%%H:%%i') AS son_saat FROM ogunler ORDER BY id")
+            cur.execute("SELECT id, ad, TIME_FORMAT(son_saat, '%H:%i') AS son_saat FROM ogunler ORDER BY id")
             ogunler = cur.fetchall()
             cur.execute(
                 """
@@ -89,7 +89,42 @@ def referanslari_getir():
                 """
             )
             yemekler = cur.fetchall()
-            return {"yemekhaneler": yemekhaneler, "ogunler": ogunler, "yemekler": yemekler}
+            cur.execute("SELECT id, ad FROM alerjenler ORDER BY id")
+            alerjenler = cur.fetchall()
+            return {
+                "yemekhaneler": yemekhaneler,
+                "ogunler": ogunler,
+                "yemekler": yemekler,
+                "alerjenler": alerjenler,
+            }
+    finally:
+        conn.close()
+
+
+def kullanici_alerjenlerini_getir_db(kullanici_id: int) -> List[int]:
+    conn = yazma_baglantisi()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT alerjen_id FROM kullanici_alerjenleri WHERE kullanici_id = %s ORDER BY alerjen_id",
+                (kullanici_id,),
+            )
+            return [int(r["alerjen_id"]) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def kullanici_alerjenlerini_kaydet_db(kullanici_id: int, alerjen_idler: List[int]) -> List[int]:
+    conn = yazma_baglantisi()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM kullanici_alerjenleri WHERE kullanici_id = %s", (kullanici_id,))
+            for aid in sorted(set(alerjen_idler)):
+                cur.execute(
+                    "INSERT INTO kullanici_alerjenleri (kullanici_id, alerjen_id) VALUES (%s, %s)",
+                    (kullanici_id, aid),
+                )
+            return sorted(set(alerjen_idler))
     finally:
         conn.close()
 
@@ -111,11 +146,11 @@ def tek_menu_getir_db(yemekhane_id: int, tarih_str: str, ogun_id: int):
             cur.execute(
                 """
                 SELECT m.id AS menu_id, m.yemekhane_id, yh.ad AS yemekhane,
-                       DATE_FORMAT(m.tarih, '%%Y-%%m-%%d') AS tarih,
+                       DATE_FORMAT(m.tarih, '%Y-%m-%d') AS tarih,
                        o.id AS ogun_id, o.ad AS ogun,
                        m.ogrenci_fiyati, m.personel_fiyati,
                        d.kapasite, d.rezerve, d.bos_yer, d.doluluk_yuzde,
-                       DATE_FORMAT(d.rezervasyon_son, '%%Y-%%m-%%d %%H:%%i') AS rezervasyon_son,
+                       DATE_FORMAT(d.rezervasyon_son, '%Y-%m-%d %H:%i') AS rezervasyon_son,
                        (NOW() > d.rezervasyon_son) AS sure_doldu,
                        COALESCE(p.oy_sayisi, 0) AS oy_sayisi,
                        p.ortalama_puan
@@ -134,7 +169,7 @@ def tek_menu_getir_db(yemekhane_id: int, tarih_str: str, ogun_id: int):
 
             cur.execute(
                 """
-                SELECT yemek, kategori, kalori, vejetaryen, alerjenler
+                SELECT yemek, kategori, kalori, vejetaryen, alerjenler, alerjen_idler
                 FROM v_menu_detay
                 WHERE menu_id = %s
                 ORDER BY kategori_sira, yemek
@@ -142,6 +177,10 @@ def tek_menu_getir_db(yemekhane_id: int, tarih_str: str, ogun_id: int):
                 (m["menu_id"],),
             )
             yemekler = cur.fetchall()
+            for y in yemekler:
+                ham_idler = y.get("alerjen_idler")
+                y["alerjen_id_listesi"] = [int(x) for x in str(ham_idler).split(",") if x] if ham_idler else []
+
             m["yemekler"] = yemekler
             m["toplam_kalori"] = sum(y["kalori"] for y in yemekler)
             m["ogrenci_fiyati"] = float(m["ogrenci_fiyati"])
@@ -149,6 +188,7 @@ def tek_menu_getir_db(yemekhane_id: int, tarih_str: str, ogun_id: int):
             m["doluluk_yuzde"] = float(m["doluluk_yuzde"])
             m["ortalama_puan"] = float(m["ortalama_puan"]) if m["ortalama_puan"] is not None else None
             m["sure_doldu"] = bool(m["sure_doldu"])
+            m["yarim_porsiyon_uygun"] = int(m["ogun_id"]) != 1
             return m
     finally:
         conn.close()
@@ -159,7 +199,7 @@ def kullanici_rezervasyon_haritasi(kullanici_id: int):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT menu_id, durum FROM rezervasyonlar WHERE kullanici_id = %s AND durum IN ('aktif', 'kullanildi')",
+                "SELECT menu_id, durum, porsiyon FROM rezervasyonlar WHERE kullanici_id = %s AND durum IN ('aktif', 'kullanildi')",
                 (kullanici_id,),
             )
             return {r["menu_id"]: r for r in cur.fetchall()}
@@ -167,14 +207,14 @@ def kullanici_rezervasyon_haritasi(kullanici_id: int):
         conn.close()
 
 
-def rezervasyon_olustur_db(kullanici_id: int, menu_id: int):
+def rezervasyon_olustur_db(kullanici_id: int, menu_id: int, porsiyon: str = "tam"):
     conn = yazma_baglantisi()
     try:
         with conn.cursor() as cur:
-            cur.execute("CALL sp_rezervasyon_yap(%s, %s)", (kullanici_id, menu_id))
+            cur.execute("CALL sp_rezervasyon_yap(%s, %s, %s)", (kullanici_id, menu_id, porsiyon))
             sonuc = cur.fetchone()
             cur.execute(
-                "SELECT yemekhane_id, DATE_FORMAT(tarih, '%%Y-%%m-%%d') AS tarih, ogun_id FROM menuler WHERE id = %s",
+                "SELECT yemekhane_id, DATE_FORMAT(tarih, '%Y-%m-%d') AS tarih, ogun_id FROM menuler WHERE id = %s",
                 (menu_id,),
             )
             meta = cur.fetchone()
@@ -189,8 +229,8 @@ def rezervasyonlarim_listele_db(kullanici_id: int):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT r.id, r.menu_id, r.durum, r.ucret,
-                       DATE_FORMAT(m.tarih, '%%Y-%%m-%%d') AS tarih,
+                SELECT r.id, r.menu_id, r.durum, r.ucret, r.porsiyon,
+                       DATE_FORMAT(m.tarih, '%Y-%m-%d') AS tarih,
                        yh.ad AS yemekhane, o.ad AS ogun,
                        (r.durum = 'aktif' AND NOW() <= d.rezervasyon_son) AS iptal_edilebilir,
                        dg.puan AS verilen_puan, dg.yorum AS verilen_yorum
@@ -198,7 +238,7 @@ def rezervasyonlarim_listele_db(kullanici_id: int):
                 JOIN menuler m ON m.id = r.menu_id
                 JOIN yemekhaneler yh ON yh.id = m.yemekhane_id
                 JOIN ogunler o ON o.id = m.ogun_id
-                JOIN v_menu_doluluk d ON d.menu_id = m.id
+                JOIN v_menu_doluluk d ON d.menu_id = r.menu_id
                 LEFT JOIN degerlendirmeler dg ON dg.menu_id = r.menu_id AND dg.kullanici_id = r.kullanici_id
                 WHERE r.kullanici_id = %s
                 ORDER BY m.tarih DESC, o.id
@@ -220,7 +260,7 @@ def rezervasyon_iptal_db(kullanici_id: int, rez_id: int):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT m.yemekhane_id, DATE_FORMAT(m.tarih, '%%Y-%%m-%%d') AS tarih, m.ogun_id
+                SELECT m.yemekhane_id, DATE_FORMAT(m.tarih, '%Y-%m-%d') AS tarih, m.ogun_id
                 FROM rezervasyonlar r JOIN menuler m ON m.id = r.menu_id
                 WHERE r.id = %s
                 """,
@@ -249,7 +289,7 @@ def degerlendirme_kaydet_db(kullanici_id: int, menu_id: int, puan: int, yorum: s
                 (kullanici_id, menu_id, puan, yorum),
             )
             cur.execute(
-                "SELECT yemekhane_id, DATE_FORMAT(tarih, '%%Y-%%m-%%d') AS tarih, ogun_id FROM menuler WHERE id = %s",
+                "SELECT yemekhane_id, DATE_FORMAT(tarih, '%Y-%m-%d') AS tarih, ogun_id FROM menuler WHERE id = %s",
                 (menu_id,),
             )
             return cur.fetchone()
@@ -273,7 +313,7 @@ def bakiye_ve_hareketler_getir_db(kullanici_id: int):
             cur.execute(
                 """
                 SELECT id, tur, tutar, aciklama,
-                       DATE_FORMAT(olusturma, '%%Y-%%m-%%d %%H:%%i') AS olusturma
+                       DATE_FORMAT(olusturma, '%Y-%m-%d %H:%i') AS olusturma
                 FROM bakiye_hareketleri
                 WHERE kullanici_id = %s
                 ORDER BY id DESC LIMIT 30
@@ -331,7 +371,7 @@ def yonetim_rapor_getir_db():
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT m.id AS menu_id, DATE_FORMAT(m.tarih, '%%Y-%%m-%%d') AS tarih,
+                SELECT m.id AS menu_id, DATE_FORMAT(m.tarih, '%Y-%m-%d') AS tarih,
                        yh.ad AS yemekhane, o.ad AS ogun,
                        d.kapasite, d.rezerve, d.doluluk_yuzde,
                        COALESCE(p.oy_sayisi, 0) AS oy_sayisi, p.ortalama_puan
